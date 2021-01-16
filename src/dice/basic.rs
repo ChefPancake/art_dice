@@ -1,4 +1,4 @@
-use super::*;
+use crate::dice::*;
 
 fn side_of_n_symbols(n: usize, symbol: &DiceSymbol) -> DiceSide {
     let vec = 
@@ -17,26 +17,26 @@ fn n_sided_die(n: usize) -> Die {
     Die { sides }
 }
 
-pub fn four_sided() -> Die {
+pub fn d4() -> Die {
     n_sided_die(4)
 }
 
-pub fn six_sided() -> Die {
+pub fn d6() -> Die {
     n_sided_die(6)
 }
 
-pub fn eight_sided() -> Die {
+pub fn d8() -> Die {
     n_sided_die(8)
 }
 
-pub fn ten_sided() -> Die {
+pub fn d10() -> Die {
     n_sided_die(10)
 }
 
-pub fn twelve_sided() -> Die {
+pub fn d12() -> Die {
     n_sided_die(12)
 }
 
-pub fn twenty_sided() -> Die {
+pub fn d20() -> Die {
     n_sided_die(20)
 }

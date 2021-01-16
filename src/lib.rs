@@ -1,4 +1,6 @@
 pub mod dice;
+pub mod rolls;
+pub mod item_counter;
 
 #[cfg(test)]
 mod dice_tests {
@@ -13,7 +15,7 @@ mod dice_tests {
 
     #[test]
     fn four_sided_die() {
-        let die = four_sided();
+        let die = d4();
         let sides = die.sides();
         let symbols = die.unique_symbols();
         assert_eq!(symbols.len(), 1);
@@ -23,7 +25,7 @@ mod dice_tests {
 
     #[test]
     fn twelve_sided_die() {
-        let die = twelve_sided();
+        let die = d12();
         let sides = die.sides();
         let symbols = die.unique_symbols();
         assert_eq!(symbols.len(), 1);

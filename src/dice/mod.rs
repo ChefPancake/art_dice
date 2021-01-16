@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 pub mod basic;
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct DiceSymbol {
     name: String
 }
