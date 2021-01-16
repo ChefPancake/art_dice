@@ -32,13 +32,6 @@ impl DiceSide {
     pub fn symbols(&self) -> &[DiceSymbol] {
         &self.symbols.as_slice()
     }
-
-    pub fn unique_symbols(&self) -> HashSet<DiceSymbol> {
-        self.symbols
-        .iter()
-        .cloned()
-        .collect::<HashSet<DiceSymbol>>()
-    }
 }
 
 pub struct Die {
@@ -57,7 +50,18 @@ impl Die {
         self.sides.as_slice()
     }
 
-    pub fn unique_symbols(&self) -> HashSet<DiceSymbol> {
-        self.sides.iter().map(|s| s.unique_symbols()).flatten().collect()
+    pub fn unique_symbols(&self) -> Vec<DiceSymbol> {
+        let mut unique = Vec::new();
+        for symbol in
+                self.sides.iter()
+                .map(|s| s.symbols())
+                .flatten()
+                .cloned()
+                .collect::<Vec<DiceSymbol>>() {
+            if !unique.contains(&symbol) {
+                unique.push(symbol);
+            }
+        }
+        unique
     }
 }
