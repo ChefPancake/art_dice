@@ -134,10 +134,7 @@ impl RollProbabilities {
         for poss in self.occurrences.keys() {
             let mut count: usize = 0;
             for symbol in symbols {
-                count += match poss.symbols.get_count(&symbol) {
-                    Some(y) => y,
-                    None => 0
-                };
+                count += poss.symbols.get_count(&symbol);
             }
             let cond = match target {
                 RollTargets::Exactly(x) => count == x,
