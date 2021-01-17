@@ -5,9 +5,9 @@ pub mod item_counter;
 #[cfg(test)]
 mod dice_tests {
     use super::dice::*;
-    use super::dice::basic::*;
+    use super::dice::standard::*;
 
-    fn assert_dice_sides(sides: &[DiceSide]) {
+    fn assert_dice_sides(sides: &[DieSide]) {
         for i in 0..(sides.len()) {
             assert_eq!(sides[i].symbols().len(), i+1);
         }

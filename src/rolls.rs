@@ -2,15 +2,9 @@ use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
 
-pub enum DiceRollTargets {
-    Exactly(usize),
-    AtLeast(usize),
-    AtMost(usize)
-}
-
 #[derive(Eq, PartialEq, Clone, Hash)]
 struct RollResultPossibility {
-    symbols: ItemCounter<DiceSymbol>
+    symbols: ItemCounter<DieSymbol>
 }
 
 impl RollResultPossibility {
@@ -20,7 +14,7 @@ impl RollResultPossibility {
         }
     }
 
-    pub fn add_symbols(&self, symbols: &[DiceSymbol]) -> RollResultPossibility {
+    pub fn add_symbols(&self, symbols: &[DieSymbol]) -> RollResultPossibility {
         let mut symbol_count = self.clone().symbols;
         for symbol in symbols {
             symbol_count.add(symbol);
@@ -29,20 +23,62 @@ impl RollResultPossibility {
     }
 }
 
-pub struct RollResults {
+/// Represents the type of targets for a given roll
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum RollTargets {
+    /// The target roll is exactly N symbols
+    Exactly(usize),
+    /// the target roll is at least N symbols
+    AtLeast(usize),
+    /// the target roll is at most N symbols
+    AtMost(usize)
+}
+
+/// Tracks the probabilities of a roll of zero or more dice
+pub struct RollProbabilities {
     occurrences: HashMap<RollResultPossibility, usize>,
     total: usize
 }
 
-impl RollResults {
-    pub fn new() -> RollResults {
+impl RollProbabilities {
+    /// Creates a new, empty instance of [`RollProbabilities`](crate::rolls::RollProbabilities)
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::rolls::RollProbabilities;
+    /// # fn main() -> Result<(), String> {
+    /// let results = RollProbabilities::new();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new() -> RollProbabilities {
         let poss = RollResultPossibility::new();
         let mut result_map = HashMap::new();
         result_map.insert(poss, 1);
-        RollResults { occurrences: result_map, total: 1 }
+        RollProbabilities { occurrences: result_map, total: 1 }
     }
 
-    pub fn add_die(&self, die: Die) -> RollResults {
+    /// Returns a new [`RollProbabilities`](crate::rolls::RollProbabilities) that reflects the current probabilities with the added [`Die`](crate::dice::Die)
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::RollProbabilities;
+    /// # fn main() -> Result<(), String> {
+    /// let prob = RollProbabilities::new();
+    /// let d4_die = standard::d4();
+    /// let d6_die = standard::d6();
+    /// 
+    /// let prob_with_d4 = prob.add_die(d4_die);
+    /// let prob_with_d4_and_d6 = prob_with_d4.add_die(d6_die);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn add_die(&self, die: Die) -> RollProbabilities {
         let mut new_results = HashMap::new();
         for side in die.sides() {
             for result in self.occurrences.keys() {
@@ -56,13 +92,40 @@ impl RollResults {
             }
         }
         let total = new_results.values().sum();
-        RollResults {
+        RollProbabilities {
             occurrences: new_results,
             total: total
         }
     }
 
-    pub fn get_odds(&self, target: &DiceRollTargets, symbols: &[DiceSymbol]) -> f64 {
+    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTargets) counting all of the provided symbols
+    /// 
+    /// # Examples
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTargets, RollProbabilities};
+    /// # fn main() -> Result<(), String> {
+    /// let two_d4s = 
+    ///     RollProbabilities::new()
+    ///     .add_die(standard::d4())
+    ///     .add_die(standard::d4());
+    /// 
+    /// let symbols = vec![ standard::pip() ];
+    /// 
+    /// let exactly_3 = two_d4s.get_odds(RollTargets::Exactly(3), &symbols);
+    /// let at_least_6 = two_d4s.get_odds(RollTargets::AtLeast(6), &symbols);
+    /// let at_most_5 = two_d4s.get_odds(RollTargets::AtMost(5), &symbols);
+    /// 
+    /// assert_eq!(exactly_3, 0.125);
+    /// assert_eq!(at_least_6, 0.375);
+    /// assert_eq!(at_most_5, 0.625);
+    /// # Ok(())
+    /// # }
+    /// ```
+    /// 
+    pub fn get_odds(&self, target: RollTargets, symbols: &[DieSymbol]) -> f64 {
         if self.total == 0 {
             return 0.0;
         }
@@ -77,9 +140,9 @@ impl RollResults {
                 };
             }
             let cond = match target {
-                DiceRollTargets::Exactly(x) => count == *x,
-                DiceRollTargets::AtLeast(x) => count >= *x,
-                DiceRollTargets::AtMost(x) => count <= *x
+                RollTargets::Exactly(x) => count == x,
+                RollTargets::AtLeast(x) => count >= x,
+                RollTargets::AtMost(x) => count <= x
             };
             if cond {
                 total_occurrences += self.occurrences[poss];
@@ -92,19 +155,19 @@ impl RollResults {
 
 #[cfg(test)]
 mod roll_tests {
-    use crate::dice::basic::*;
+    use crate::dice::standard::*;
     use crate::rolls::*;
 
-    fn test_results_exactly(results: &RollResults, symbols: &[DiceSymbol], count: usize, expected: f64) {
-        let target = DiceRollTargets::Exactly(count);
-        let odds = results.get_odds(&target, &symbols);
+    fn test_results_exactly(results: &RollProbabilities, symbols: &[DieSymbol], count: usize, expected: f64) {
+        let target = RollTargets::Exactly(count);
+        let odds = results.get_odds(target, &symbols);
         assert_eq!(odds, expected);
     }
 
     #[test]
     fn one_d4() {
         let d4_1 = d4();
-        let results = RollResults::new();
+        let results = RollProbabilities::new();
         let results = results.add_die(d4_1);
         assert_eq!(results.total, 4);
         
@@ -120,7 +183,7 @@ mod roll_tests {
     fn two_d4s() {
         let d4_1 = d4();
         let d4_2 = d4();
-        let results = RollResults::new();
+        let results = RollProbabilities::new();
         let results = results.add_die(d4_1);
         let results = results.add_die(d4_2);
         assert_eq!(results.total, 16);
@@ -141,7 +204,7 @@ mod roll_tests {
     fn d4_and_d8() {
         let d4_1 = d4();
         let d8_1 = d8();
-        let results = RollResults::new();
+        let results = RollProbabilities::new();
         let results = results.add_die(d4_1);
         let results = results.add_die(d8_1);
         assert_eq!(results.total, 32);
@@ -165,7 +228,7 @@ mod roll_tests {
     #[test]
     fn three_d4s() {
         let results = 
-            RollResults::new()
+            RollProbabilities::new()
             .add_die(d4())
             .add_die(d4())
             .add_die(d4());
@@ -176,9 +239,9 @@ mod roll_tests {
     }
 
     #[test]
-    fn all_basic_dice() {
+    fn all_standard_dice() {
         let results = 
-            RollResults::new()
+            RollProbabilities::new()
             .add_die(d4())
             .add_die(d6())
             .add_die(d8())
@@ -190,7 +253,7 @@ mod roll_tests {
 
     #[test]
     fn no_dice_exactly_zero() {
-        let results = RollResults::new();
+        let results = RollProbabilities::new();
         let symbols = d4().unique_symbols();
         assert_eq!(results.total, 1);
         test_results_exactly(&results, &symbols, 0, 1.0);
