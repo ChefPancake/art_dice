@@ -1,6 +1,7 @@
 pub mod dice;
 pub mod rolls;
 pub mod item_counter;
+pub mod multi_cart;
 
 #[cfg(test)]
 mod dice_tests {
