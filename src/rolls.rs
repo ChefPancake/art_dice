@@ -36,6 +36,7 @@ pub enum RollTargets {
 
 /// Tracks the probabilities of a roll of zero or more dice
 pub struct RollProbabilities {
+    dice: Vec<Die>,
     occurrences: HashMap<RollResultPossibility, usize>,
     total: usize
 }
@@ -57,7 +58,11 @@ impl RollProbabilities {
         let poss = RollResultPossibility::new();
         let mut result_map = HashMap::new();
         result_map.insert(poss, 1);
-        RollProbabilities { occurrences: result_map, total: 1 }
+        RollProbabilities { 
+            dice: Vec::new(),
+            occurrences: result_map, 
+            total: 1 
+        }
     }
 
     /// Returns a new [`RollProbabilities`](crate::rolls::RollProbabilities) that reflects the current probabilities with the added [`Die`](crate::dice::Die)
@@ -92,7 +97,10 @@ impl RollProbabilities {
             }
         }
         let total = new_results.values().sum();
+        let mut new_dice = self.dice.clone();
+        new_dice.push(die);
         RollProbabilities {
+            dice: new_dice,
             occurrences: new_results,
             total: total
         }
