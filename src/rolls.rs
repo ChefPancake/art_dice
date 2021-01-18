@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
+use crate::multi_cart::MultiCartesianProduct;
 
 #[derive(Eq, PartialEq, Clone, Hash)]
 struct RollResultPossibility {
@@ -85,20 +86,24 @@ impl RollProbabilities {
     /// ```
     pub fn add_die(&self, die: Die) -> RollProbabilities {
         let mut new_results = HashMap::new();
-        for side in die.sides() {
-            for result in self.occurrences.keys() {
-                let occur = self.occurrences[result];
-                let new_poss = result.add_symbols(side.symbols());
-                if new_results.contains_key(&new_poss) {
-                    new_results.get_mut(&new_poss).map(|x| *x += occur);
-                } else {
-                    new_results.insert(new_poss, occur);
-                }
+        let mut new_dice = self.dice.clone();
+        new_dice.push(die);
+        let sides: &[&[DieSide]] = 
+            &new_dice.iter()
+            .map(|x| x.sides())
+            .collect::<Vec<&[DieSide]>>();
+        for roll in MultiCartesianProduct::new(&sides) {
+            let symbols: Vec<DieSymbol> = roll.iter().map(|x| x.symbols()).flatten().cloned().collect();
+            let new_poss = 
+                RollResultPossibility::new()
+                .add_symbols(&symbols);
+            if new_results.contains_key(&new_poss) {
+                new_results.get_mut(&new_poss).map(|x| *x += 1);
+            } else {
+                new_results.insert(new_poss, 1);
             }
         }
         let total = new_results.values().sum();
-        let mut new_dice = self.dice.clone();
-        new_dice.push(die);
         RollProbabilities {
             dice: new_dice,
             occurrences: new_results,
@@ -262,7 +267,5 @@ mod roll_tests {
         let symbols = d4().unique_symbols();
         assert_eq!(results.total, 1);
         test_results_exactly(&results, &symbols, 0, 1.0);
-
     }
-
 }
