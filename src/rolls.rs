@@ -26,13 +26,68 @@ impl RollResultPossibility {
 
 /// Represents the type of targets for a given roll
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum RollTargets {
-    /// The target roll is exactly N symbols
-    Exactly(usize),
-    /// the target roll is at least N symbols
-    AtLeast(usize),
-    /// the target roll is at most N symbols
-    AtMost(usize)
+enum RollTargetTypes {
+    
+    Exactly,
+    
+    AtLeast,
+    
+    AtMost
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+/// Represents the target for a given roll
+pub struct RollTarget<'a> {
+    target_type: RollTargetTypes,
+    amount: usize,
+    symbols: &'a [DieSymbol]
+}
+
+impl<'a> RollTarget<'a> {
+    /// Returns an instance of a target that is exactly N of provided symbols
+    pub fn exactly_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+        RollTarget {
+            target_type: RollTargetTypes::Exactly,
+            amount: n,
+            symbols
+        }
+    }
+    /// Returns an instance of a target that is at least N of provided symbols
+    pub fn at_least_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+        RollTarget {
+            target_type: RollTargetTypes::AtLeast,
+            amount: n,
+            symbols
+        }
+    }
+    /// Returns an instance of a target that is at most N of provided symbols
+    pub fn at_most_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+        RollTarget {
+            target_type: RollTargetTypes::AtMost,
+            amount: n,
+            symbols
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum RollCollectionTypes {
+    /// Collect all dice in the roll
+    CollectAll,
+    /// Take the highest N dice, ordering by number of matching symbols
+    TakeHighestOf(usize),
+    /// Take the lowest N dice, ordering by number of matching symbols
+    TakeLowestOf(usize),
+    /// Remove the highest N dice and collect the rest, ordering by number of matching symbols
+    RemoveHighestOf(usize),
+    /// Remove the lowest N dice and collect the rest, ordering by number of matching symbols
+    RemoveLowestOf(usize)
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct RollCollection<'a> {
+    coll_type: RollCollectionTypes,
+    symbols: &'a [DieSymbol]
 }
 
 /// Tracks the probabilities of a roll of one or more dice
@@ -42,14 +97,14 @@ pub struct RollProbabilities {
 }
 
 impl RollProbabilities {
-    /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) containing a collection of [`Dice`](crate::dice::Die). Returns Err if provided slice contains no elements, else returns Ok.
+    /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) containing a collection of [`Dice`](crate::dice::Die). Returns `Err` if provided slice contains no elements, else returns `Ok`.
     /// 
     /// # Example
     /// ```rust
     /// # use std::error::Error;
     /// # use art_dice::dice::{DieSymbol, DieSide, Die};
     /// # use art_dice::dice::standard;
-    /// # use art_dice::rolls::{RollTargets, RollProbabilities};
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities};
     /// # fn main() -> Result<(), String> {
     /// let dice = vec![standard::d4(), standard::d4()];
     /// 
@@ -90,16 +145,16 @@ impl RollProbabilities {
     /// # use std::error::Error;
     /// # use art_dice::dice::{DieSymbol, DieSide, Die};
     /// # use art_dice::dice::standard;
-    /// # use art_dice::rolls::{RollTargets, RollProbabilities};
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities};
     /// # fn main() -> Result<(), String> {
     /// let dice = vec![standard::d4(), standard::d4()];
     /// let two_d4s = RollProbabilities::new(&dice)?;
     /// 
     /// let symbols = vec![ standard::pip() ];
     /// 
-    /// let exactly_3 = two_d4s.get_odds(RollTargets::Exactly(3), &symbols);
-    /// let at_least_6 = two_d4s.get_odds(RollTargets::AtLeast(6), &symbols);
-    /// let at_most_5 = two_d4s.get_odds(RollTargets::AtMost(5), &symbols);
+    /// let exactly_3 = two_d4s.get_odds(RollTarget::exactly_n_of(3, &symbols));
+    /// let at_least_6 = two_d4s.get_odds(RollTarget::at_least_n_of(6, &symbols));
+    /// let at_most_5 = two_d4s.get_odds(RollTarget::at_most_n_of(5, &symbols));
     /// 
     /// assert_eq!(exactly_3, 0.125);
     /// assert_eq!(at_least_6, 0.375);
@@ -107,7 +162,7 @@ impl RollProbabilities {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_odds(&self, target: RollTargets, symbols: &[DieSymbol]) -> f64 {
+    pub fn get_odds(&self, target: RollTarget) -> f64 {
         if self.total == 0 {
             return 0.0;
         }
@@ -115,13 +170,13 @@ impl RollProbabilities {
         let mut total_occurrences = 0;
         for poss in self.occurrences.keys() {
             let mut count: usize = 0;
-            for symbol in symbols {
+            for symbol in target.symbols {
                 count += poss.symbols.get_count(&symbol);
             }
-            let cond = match target {
-                RollTargets::Exactly(x) => count == x,
-                RollTargets::AtLeast(x) => count >= x,
-                RollTargets::AtMost(x) => count <= x
+            let cond = match target.target_type {
+                RollTargetTypes::Exactly => count == target.amount,
+                RollTargetTypes::AtLeast => count >= target.amount,
+                RollTargetTypes::AtMost => count <= target.amount
             };
             if cond {
                 total_occurrences += self.occurrences[poss];
@@ -138,8 +193,8 @@ mod roll_tests {
     use crate::rolls::*;
 
     fn test_results_exactly(results: &RollProbabilities, symbols: &[DieSymbol], count: usize, expected: f64) {
-        let target = RollTargets::Exactly(count);
-        let odds = results.get_odds(target, &symbols);
+        let target = RollTarget::exactly_n_of(count, symbols);
+        let odds = results.get_odds(target);
         assert_eq!(odds, expected);
     }
 

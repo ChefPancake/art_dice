@@ -94,7 +94,7 @@ pub struct Die {
     sides: Vec<DieSide>
 }
 impl Die {
-    /// Creates a new instance of a [`Die`](crate::Dice::Die) with its [`DieSides`](crate::dice::DieSide). Returns [`Err`](std::Err) if input sides has fewer than 2 sides (a coin), else returns [`Ok`](std::Ok)
+    /// Creates a new instance of a [`Die`](crate::Dice::Die) with its [`DieSides`](crate::dice::DieSide). Returns `Err` if input sides has fewer than 2 sides (a coin), else returns `Ok`
     /// 
     /// # Example
     /// ```rust
@@ -143,7 +143,7 @@ impl Die {
         self.sides.as_slice()
     }
 
-    /// Returns a distinct collection of all [`DieSymbols`](crate::dice::DieSymbol) represented on all [`DieSides`](crate::dice::DieSide) of the [`Die`](crate::Dice::Die) as a [`Vec`](std::Vec)
+    /// Returns a distinct collection of all [`DieSymbols`](crate::dice::DieSymbol) represented on all [`DieSides`](crate::dice::DieSide) of the [`Die`](crate::Dice::Die) as a `Vec`
     /// 
     /// # Example
     /// ```rust
