@@ -1,7 +1,8 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
-use crate::multi_cart::MultiCartesianProduct;
+//use crate::multi_cart::MultiCartesianProduct;
 
 #[derive(Eq, PartialEq, Clone, Hash)]
 struct RollResultPossibility {
@@ -35,80 +36,36 @@ pub enum RollTargets {
     AtMost(usize)
 }
 
-/// Tracks the probabilities of a roll of zero or more dice
+/// Tracks the probabilities of a roll of one or more dice
 pub struct RollProbabilities {
-    dice: Vec<Die>,
     occurrences: HashMap<RollResultPossibility, usize>,
     total: usize
 }
 
 impl RollProbabilities {
-    /// Creates a new, empty instance of [`RollProbabilities`](crate::rolls::RollProbabilities)
-    /// 
-    /// # Example
-    /// ```rust
-    /// # use std::error::Error;
-    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
-    /// # use art_dice::rolls::RollProbabilities;
-    /// # fn main() -> Result<(), String> {
-    /// let results = RollProbabilities::new();
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn new() -> RollProbabilities {
-        let poss = RollResultPossibility::new();
-        let mut result_map = HashMap::new();
-        result_map.insert(poss, 1);
-        RollProbabilities { 
-            dice: Vec::new(),
-            occurrences: result_map, 
-            total: 1 
+    pub fn new(dice: &[Die]) -> Result<RollProbabilities, String> {
+        if dice.len() == 0 {
+            return Err("must include at least one die".to_string());
         }
-    }
-
-    /// Returns a new [`RollProbabilities`](crate::rolls::RollProbabilities) that reflects the current probabilities with the added [`Die`](crate::dice::Die)
-    /// 
-    /// # Example
-    /// ```rust
-    /// # use std::error::Error;
-    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
-    /// # use art_dice::dice::standard;
-    /// # use art_dice::rolls::RollProbabilities;
-    /// # fn main() -> Result<(), String> {
-    /// let prob = RollProbabilities::new();
-    /// let d4_die = standard::d4();
-    /// let d6_die = standard::d6();
-    /// 
-    /// let prob_with_d4 = prob.add_die(d4_die);
-    /// let prob_with_d4_and_d6 = prob_with_d4.add_die(d6_die);
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn add_die(&self, die: Die) -> RollProbabilities {
-        let mut new_results = HashMap::new();
-        let mut new_dice = self.dice.clone();
-        new_dice.push(die);
-        let sides: &[&[DieSide]] = 
-            &new_dice.iter()
-            .map(|x| x.sides())
-            .collect::<Vec<&[DieSide]>>();
-        for roll in MultiCartesianProduct::new(&sides) {
+        let mut occur = HashMap::new();
+        for roll in dice.into_iter()
+                .map(|x| x.sides())
+                .multi_cartesian_product() {
             let symbols: Vec<DieSymbol> = roll.iter().map(|x| x.symbols()).flatten().cloned().collect();
             let new_poss = 
                 RollResultPossibility::new()
                 .add_symbols(&symbols);
-            if new_results.contains_key(&new_poss) {
-                new_results.get_mut(&new_poss).map(|x| *x += 1);
+            if occur.contains_key(&new_poss) {
+                occur.get_mut(&new_poss).map(|x| *x += 1);
             } else {
-                new_results.insert(new_poss, 1);
+                occur.insert(new_poss, 1);
             }
         }
-        let total = new_results.values().sum();
-        RollProbabilities {
-            dice: new_dice,
-            occurrences: new_results,
+        let total = occur.values().sum();
+        Ok(RollProbabilities {
+            occurrences: occur,
             total: total
-        }
+        })
     }
 
     /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTargets) counting all of the provided symbols
@@ -121,9 +78,7 @@ impl RollProbabilities {
     /// # use art_dice::rolls::{RollTargets, RollProbabilities};
     /// # fn main() -> Result<(), String> {
     /// let two_d4s = 
-    ///     RollProbabilities::new()
-    ///     .add_die(standard::d4())
-    ///     .add_die(standard::d4());
+    ///     RollProbabilities::new(&vec![standard::d4(), standard::d4()])?;
     /// 
     /// let symbols = vec![ standard::pip() ];
     /// 
@@ -176,9 +131,7 @@ mod roll_tests {
 
     #[test]
     fn one_d4() {
-        let d4_1 = d4();
-        let results = RollProbabilities::new();
-        let results = results.add_die(d4_1);
+        let results = RollProbabilities::new( &vec![d4()] ).unwrap();
         assert_eq!(results.total, 4);
         
         let symbols = d4().unique_symbols();
@@ -191,11 +144,7 @@ mod roll_tests {
 
     #[test]
     fn two_d4s() {
-        let d4_1 = d4();
-        let d4_2 = d4();
-        let results = RollProbabilities::new();
-        let results = results.add_die(d4_1);
-        let results = results.add_die(d4_2);
+        let results = RollProbabilities::new(&vec![ d4(), d4() ]).unwrap();
         assert_eq!(results.total, 16);
 
         let symbols = d4().unique_symbols();
@@ -212,11 +161,7 @@ mod roll_tests {
 
     #[test]
     fn d4_and_d8() {
-        let d4_1 = d4();
-        let d8_1 = d8();
-        let results = RollProbabilities::new();
-        let results = results.add_die(d4_1);
-        let results = results.add_die(d8_1);
+        let results = RollProbabilities::new(&vec![ d4(), d8() ]).unwrap();
         assert_eq!(results.total, 32);
 
         let symbols = d4().unique_symbols();
@@ -237,12 +182,8 @@ mod roll_tests {
 
     #[test]
     fn three_d4s() {
-        let results = 
-            RollProbabilities::new()
-            .add_die(d4())
-            .add_die(d4())
-            .add_die(d4());
-        
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ] ).unwrap();
+            
         let symbols = d4().unique_symbols();
         assert_eq!(results.total, 4*4*4);
         test_results_exactly(&results, &symbols, 7, 0.1875);
@@ -250,22 +191,8 @@ mod roll_tests {
 
     #[test]
     fn all_standard_dice() {
-        let results = 
-            RollProbabilities::new()
-            .add_die(d4())
-            .add_die(d6())
-            .add_die(d8())
-            .add_die(d10())
-            .add_die(d12())
-            .add_die(d20());
+        let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10(), d12(), d20() ] ).unwrap();
+    
         assert_eq!(results.total, 4*6*8*10*12*20);
-    }
-
-    #[test]
-    fn no_dice_exactly_zero() {
-        let results = RollProbabilities::new();
-        let symbols = d4().unique_symbols();
-        assert_eq!(results.total, 1);
-        test_results_exactly(&results, &symbols, 0, 1.0);
     }
 }
