@@ -2,7 +2,6 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
-//use crate::multi_cart::MultiCartesianProduct;
 
 #[derive(Eq, PartialEq, Clone, Hash)]
 struct RollResultPossibility {
