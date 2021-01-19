@@ -42,6 +42,22 @@ pub struct RollProbabilities {
 }
 
 impl RollProbabilities {
+    /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) containing a collection of [`Dice`](crate::dice::Die). Returns Err if provided slice contains no elements, else returns Ok.
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTargets, RollProbabilities};
+    /// # fn main() -> Result<(), String> {
+    /// let dice = vec![standard::d4(), standard::d4()];
+    /// 
+    /// let two_d4s = RollProbabilities::new(&dice)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    /// 
     pub fn new(dice: &[Die]) -> Result<RollProbabilities, String> {
         if dice.len() == 0 {
             return Err("must include at least one die".to_string());
@@ -76,8 +92,8 @@ impl RollProbabilities {
     /// # use art_dice::dice::standard;
     /// # use art_dice::rolls::{RollTargets, RollProbabilities};
     /// # fn main() -> Result<(), String> {
-    /// let two_d4s = 
-    ///     RollProbabilities::new(&vec![standard::d4(), standard::d4()])?;
+    /// let dice = vec![standard::d4(), standard::d4()];
+    /// let two_d4s = RollProbabilities::new(&dice)?;
     /// 
     /// let symbols = vec![ standard::pip() ];
     /// 
@@ -91,7 +107,6 @@ impl RollProbabilities {
     /// # Ok(())
     /// # }
     /// ```
-    /// 
     pub fn get_odds(&self, target: RollTargets, symbols: &[DieSymbol]) -> f64 {
         if self.total == 0 {
             return 0.0;
@@ -189,9 +204,9 @@ mod roll_tests {
     }
 
     #[test]
-    fn all_standard_dice() {
-        let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10(), d12(), d20() ] ).unwrap();
+    fn four_through_ten() {
+        let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10() ] ).unwrap();
     
-        assert_eq!(results.total, 4*6*8*10*12*20);
+        assert_eq!(results.total, 4*6*8*10);
     }
 }
