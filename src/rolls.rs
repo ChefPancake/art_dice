@@ -27,11 +27,8 @@ impl RollResultPossibility {
 /// Represents the type of targets for a given roll
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum RollTargetTypes {
-    
     Exactly,
-    
     AtLeast,
-    
     AtMost
 }
 
@@ -71,26 +68,23 @@ impl<'a> RollTarget<'a> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum RollCollectionTypes {
-    /// Collect all dice in the roll
+enum RollCollectionTypes {
     CollectAll,
-    /// Take the highest N dice, ordering by number of matching symbols
     TakeHighestN(usize),
-    /// Take the lowest N dice, ordering by number of matching symbols
     TakeLowestN(usize),
-    /// Remove the highest N dice and collect the rest, ordering by number of matching symbols
     RemoveHighestN(usize),
-    /// Remove the lowest N dice and collect the rest, ordering by number of matching symbols
     RemoveLowestN(usize)
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
+/// Defines the policy used to collect dice after a roll based on [`DieSymbol`](crate::dice::DieSymbol) occurrences
 pub struct RollCollectionPolicy<'a> {
     coll_type: RollCollectionTypes,
     symbols: &'a [DieSymbol]
 }
 
 impl<'a> RollCollectionPolicy<'a> {
+    /// Collect all dice in the roll
     pub fn collect_all(symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
         RollCollectionPolicy {
             coll_type: RollCollectionTypes::CollectAll,
@@ -98,6 +92,7 @@ impl<'a> RollCollectionPolicy<'a> {
         }
     }
 
+    /// Take the highest N dice, ordering by number of matching symbols
     pub fn take_highest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
         RollCollectionPolicy {
             coll_type: RollCollectionTypes::TakeHighestN(n),
@@ -105,20 +100,23 @@ impl<'a> RollCollectionPolicy<'a> {
         }
     }
 
+    /// Take the lowest N dice, ordering by number of matching symbols
     pub fn take_lowest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
         RollCollectionPolicy {
             coll_type: RollCollectionTypes::TakeLowestN(n),
             symbols
         }
     }
-
+    
+    /// Remove the highest N dice and collect the rest, ordering by number of matching symbols
     pub fn remove_highest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
         RollCollectionPolicy {
             coll_type: RollCollectionTypes::RemoveHighestN(n),
             symbols
         }
     }
-
+    
+    /// Remove the lowest N dice and collect the rest, ordering by number of matching symbols
     pub fn remove_lowest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
         RollCollectionPolicy {
             coll_type: RollCollectionTypes::RemoveLowestN(n),
@@ -165,7 +163,8 @@ impl RollProbabilities {
     }
 
     /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) based on the provided collection of [`Dice`](crate::dice::Die). 
-    /// Die sides are collected based on the provided ['RollCollectionPolicy'](crate::rolls:RollCollectionPolicy). Returns `Err` if provided slice contains no elements, else returns `Ok`.
+    /// Die sides are collected based on the provided [`RollCollectionPolicy`](crate::rolls::RollCollectionPolicy). 
+    /// Returns `Err` if provided slice contains no elements, else returns `Ok`.
     /// 
     /// # Example
     /// ```rust
@@ -208,7 +207,9 @@ impl RollProbabilities {
         })
     }
 
-    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTargets)
+    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTarget). 
+    /// Note that the roll's [`DieSymbols`](crate::dice::DieSymbol) will have been filtered down based
+    /// on the [`RollCollectionPolicy`](crate::rolls::RollCollectionPolicy) used to generate the probability
     /// 
     /// # Examples
     /// ```rust
