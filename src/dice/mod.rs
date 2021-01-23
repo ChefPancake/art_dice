@@ -1,4 +1,6 @@
 pub mod standard;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 /// Represents an instance of a symbol found on a die
