@@ -45,7 +45,7 @@ pub struct RollTarget<'a> {
 
 impl<'a> RollTarget<'a> {
     /// Returns an instance of a target that is exactly N of provided symbols
-    pub fn exactly_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+    pub fn exactly_n_of(n: usize, symbols: &'a [DieSymbol]) -> RollTarget {
         RollTarget {
             target_type: RollTargetTypes::Exactly,
             amount: n,
@@ -53,7 +53,7 @@ impl<'a> RollTarget<'a> {
         }
     }
     /// Returns an instance of a target that is at least N of provided symbols
-    pub fn at_least_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+    pub fn at_least_n_of(n: usize, symbols: &'a [DieSymbol]) -> RollTarget {
         RollTarget {
             target_type: RollTargetTypes::AtLeast,
             amount: n,
@@ -61,7 +61,7 @@ impl<'a> RollTarget<'a> {
         }
     }
     /// Returns an instance of a target that is at most N of provided symbols
-    pub fn at_most_n_of(n: usize, symbols: &[DieSymbol]) -> RollTarget {
+    pub fn at_most_n_of(n: usize, symbols: &'a [DieSymbol]) -> RollTarget {
         RollTarget {
             target_type: RollTargetTypes::AtMost,
             amount: n,
@@ -75,19 +75,56 @@ pub enum RollCollectionTypes {
     /// Collect all dice in the roll
     CollectAll,
     /// Take the highest N dice, ordering by number of matching symbols
-    TakeHighestOf(usize),
+    TakeHighestN(usize),
     /// Take the lowest N dice, ordering by number of matching symbols
-    TakeLowestOf(usize),
+    TakeLowestN(usize),
     /// Remove the highest N dice and collect the rest, ordering by number of matching symbols
-    RemoveHighestOf(usize),
+    RemoveHighestN(usize),
     /// Remove the lowest N dice and collect the rest, ordering by number of matching symbols
-    RemoveLowestOf(usize)
+    RemoveLowestN(usize)
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct RollCollection<'a> {
+pub struct RollCollectionPolicy<'a> {
     coll_type: RollCollectionTypes,
     symbols: &'a [DieSymbol]
+}
+
+impl<'a> RollCollectionPolicy<'a> {
+    pub fn collect_all(symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
+        RollCollectionPolicy {
+            coll_type: RollCollectionTypes::CollectAll,
+            symbols
+        }
+    }
+
+    pub fn take_highest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
+        RollCollectionPolicy {
+            coll_type: RollCollectionTypes::TakeHighestN(n),
+            symbols
+        }
+    }
+
+    pub fn take_lowest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
+        RollCollectionPolicy {
+            coll_type: RollCollectionTypes::TakeLowestN(n),
+            symbols
+        }
+    }
+
+    pub fn remove_highest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
+        RollCollectionPolicy {
+            coll_type: RollCollectionTypes::RemoveHighestN(n),
+            symbols
+        }
+    }
+
+    pub fn remove_lowest_n_of(n:usize, symbols: &'a [DieSymbol]) -> RollCollectionPolicy {
+        RollCollectionPolicy {
+            coll_type: RollCollectionTypes::RemoveLowestN(n),
+            symbols
+        }
+    }
 }
 
 /// Tracks the probabilities of a roll of one or more dice
@@ -97,7 +134,74 @@ pub struct RollProbabilities {
 }
 
 impl RollProbabilities {
-    /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) containing a collection of [`Dice`](crate::dice::Die). Returns `Err` if provided slice contains no elements, else returns `Ok`.
+    fn collect_symbols(roll: &[&DieSide], policy: &RollCollectionPolicy) -> Vec<DieSymbol> {
+        let mut filtered_sides: Vec<Vec<DieSymbol>> =
+            roll.iter()
+            .map(|x| 
+                x.symbols().iter()
+                .filter(|y| policy.symbols.contains(y))
+                .cloned().collect())
+            .collect();
+        filtered_sides.sort_by(|x,y| x.len().cmp(&y.len()));
+        let sides_len = filtered_sides.len();
+        match policy.coll_type {
+            RollCollectionTypes::CollectAll => 
+                filtered_sides.iter()
+                .flatten().cloned().collect(),
+            RollCollectionTypes::TakeHighestN(n) => 
+                filtered_sides.iter().take(n)
+                .flatten().cloned().collect(),
+            RollCollectionTypes::TakeLowestN(n) => 
+                filtered_sides.iter().skip(sides_len - n)
+                .flatten().cloned().collect(),
+            RollCollectionTypes::RemoveHighestN(n) =>
+                filtered_sides.iter().skip(n)
+                .flatten().cloned().collect(),
+            RollCollectionTypes::RemoveLowestN(n) =>
+                filtered_sides.iter().take(sides_len - n)
+                .flatten().cloned().collect()
+        }
+    }
+
+    // fn collect_symbols(roll: &[&DieSide], policy: &RollCollectionPolicy) -> Vec<DieSymbol> {
+    //     let mut counted_sides: Vec<(usize, Vec<DieSymbol>)> =
+    //         roll.iter()
+    //         .map(|x| 
+    //             (x.symbols().iter()
+    //                 .filter(|y| policy.symbols.contains(y))
+    //                 .collect::<Vec<&DieSymbol>>().len(),
+    //             roll.iter()
+    //                 .map(|x| x.symbols().iter().cloned())
+    //                 .flatten()
+    //                 .collect()))
+    //         .collect();
+    //     counted_sides.sort_by(|x,y| x.0.cmp(&y.0));
+    //     let ordered_sides: Vec<Vec<DieSymbol>> =
+    //         counted_sides.iter()
+    //         .map(|x| x.1.clone())
+    //         .collect();
+    //     let sides_len = ordered_sides.len();
+    //     match policy.coll_type {
+    //         RollCollectionTypes::CollectAll => 
+    //             ordered_sides.iter()
+    //             .flatten().cloned().collect(),
+    //         RollCollectionTypes::TakeHighestN(n) => 
+    //             ordered_sides.iter().take(n)
+    //             .flatten().cloned().collect(),
+    //         RollCollectionTypes::TakeLowestN(n) => 
+    //             ordered_sides.iter().skip(sides_len - n)
+    //             .flatten().cloned().collect(),
+    //         RollCollectionTypes::RemoveHighestN(n) =>
+    //             ordered_sides.iter().skip(n)
+    //             .flatten().cloned().collect(),
+    //         RollCollectionTypes::RemoveLowestN(n) =>
+    //             ordered_sides.iter().take(sides_len - n)
+    //             .flatten().cloned().collect()
+    //     }
+    // }
+
+    /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) based on the provided collection of [`Dice`](crate::dice::Die). 
+    /// Die sides are collected based on the provided ['RollCollectionPolicy'](crate::rolls:RollCollectionPolicy). Returns `Err` if provided slice contains no elements, else returns `Ok`.
     /// 
     /// # Example
     /// ```rust
@@ -113,7 +217,7 @@ impl RollProbabilities {
     /// # }
     /// ```
     /// 
-    pub fn new(dice: &[Die]) -> Result<RollProbabilities, String> {
+    pub fn new(dice: &[Die], policy: RollCollectionPolicy) -> Result<RollProbabilities, String> {
         if dice.len() == 0 {
             return Err("must include at least one die".to_string());
         }
@@ -121,10 +225,10 @@ impl RollProbabilities {
         for roll in dice.into_iter()
                 .map(|x| x.sides())
                 .multi_cartesian_product() {
-            let symbols: Vec<DieSymbol> = roll.iter().map(|x| x.symbols()).flatten().cloned().collect();
+            let collected = Self::collect_symbols(&roll, &policy);
             let new_poss = 
                 RollResultPossibility::new()
-                .add_symbols(&symbols);
+                .add_symbols(&collected);
             if occur.contains_key(&new_poss) {
                 occur.get_mut(&new_poss).map(|x| *x += 1);
             } else {
@@ -138,19 +242,19 @@ impl RollProbabilities {
         })
     }
 
-    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTargets) counting all of the provided symbols
+    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTargets)
     /// 
     /// # Examples
     /// ```rust
     /// # use std::error::Error;
     /// # use art_dice::dice::{DieSymbol, DieSide, Die};
     /// # use art_dice::dice::standard;
-    /// # use art_dice::rolls::{RollTarget, RollProbabilities};
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
     /// # fn main() -> Result<(), String> {
     /// let dice = vec![standard::d4(), standard::d4()];
-    /// let two_d4s = RollProbabilities::new(&dice)?;
-    /// 
     /// let symbols = vec![ standard::pip() ];
+    /// let policy = RollCollectionPolicy::collect_all(&symbols);
+    /// let two_d4s = RollProbabilities::new(&dice, policy)?;
     /// 
     /// let exactly_3 = two_d4s.get_odds(RollTarget::exactly_n_of(3, &symbols));
     /// let at_least_6 = two_d4s.get_odds(RollTarget::at_least_n_of(6, &symbols));
@@ -200,10 +304,11 @@ mod roll_tests {
 
     #[test]
     fn one_d4() {
-        let results = RollProbabilities::new( &vec![d4()] ).unwrap();
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::collect_all(&symbols);
+        let results = RollProbabilities::new(&vec![d4()], policy).unwrap();
         assert_eq!(results.total, 4);
         
-        let symbols = d4().unique_symbols();
         
         test_results_exactly(&results, &symbols, 1, 0.25);
         test_results_exactly(&results, &symbols, 2, 0.25);
@@ -213,10 +318,10 @@ mod roll_tests {
 
     #[test]
     fn two_d4s() {
-        let results = RollProbabilities::new(&vec![ d4(), d4() ]).unwrap();
-        assert_eq!(results.total, 16);
-
         let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::collect_all(&symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4()], policy).unwrap();
+        assert_eq!(results.total, 16);
         
         test_results_exactly(&results, &symbols, 1, 0.0);
         test_results_exactly(&results, &symbols, 2, 0.0625);
@@ -230,10 +335,10 @@ mod roll_tests {
 
     #[test]
     fn d4_and_d8() {
-        let results = RollProbabilities::new(&vec![ d4(), d8() ]).unwrap();
-        assert_eq!(results.total, 32);
-
         let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::collect_all(&symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d8() ], policy).unwrap();
+        assert_eq!(results.total, 32);
         
         test_results_exactly(&results, &symbols, 1, 0.0);
         test_results_exactly(&results, &symbols, 2, 0.03125);
@@ -251,16 +356,19 @@ mod roll_tests {
 
     #[test]
     fn three_d4s() {
-        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ] ).unwrap();
-            
         let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::collect_all(&symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ], policy).unwrap();
+            
         assert_eq!(results.total, 4*4*4);
         test_results_exactly(&results, &symbols, 7, 0.1875);
     }
 
     #[test]
     fn four_through_ten() {
-        let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10() ] ).unwrap();
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::collect_all(&symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10() ], policy).unwrap();
     
         assert_eq!(results.total, 4*6*8*10);
     }
