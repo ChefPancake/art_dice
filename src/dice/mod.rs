@@ -1,4 +1,6 @@
 pub mod standard;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 /// Represents an instance of a symbol found on a die
@@ -6,7 +8,7 @@ pub struct DieSymbol {
     name: String
 }
 impl DieSymbol {
-    /// Creates a new [`DieSymbol`](crate::dice::DieSymbol). Returns an [`Err`](std::Err) if input is empty or only whitespace, otherwise returns [`Ok`](std::Ok)
+    /// Creates a new [`DieSymbol`](crate::dice::DieSymbol). Returns an `Err` if input is empty or only whitespace, otherwise returns `Ok`
     /// 
     /// # Example
     /// ```rust
@@ -94,7 +96,7 @@ pub struct Die {
     sides: Vec<DieSide>
 }
 impl Die {
-    /// Creates a new instance of a [`Die`](crate::Dice::Die) with its [`DieSides`](crate::dice::DieSide). Returns [`Err`](std::Err) if input sides has fewer than 2 sides (a coin), else returns [`Ok`](std::Ok)
+    /// Creates a new instance of a [`Die`](crate::dice::Die) with its [`DieSides`](crate::dice::DieSide). Returns `Err` if input sides has fewer than 2 sides (a coin), else returns `Ok`
     /// 
     /// # Example
     /// ```rust
@@ -119,7 +121,7 @@ impl Die {
         }
     }
 
-    /// Returns a slice of all [`DieSides`](crate::dice::DieSide) in the [`Die`](crate::Dice::Die)
+    /// Returns a slice of all [`DieSides`](crate::dice::DieSide) in the [`Die`](crate::dice::Die)
     /// 
     /// # Example
     /// ```rust
@@ -143,7 +145,7 @@ impl Die {
         self.sides.as_slice()
     }
 
-    /// Returns a distinct collection of all [`DieSymbols`](crate::dice::DieSymbol) represented on all [`DieSides`](crate::dice::DieSide) of the [`Die`](crate::Dice::Die) as a [`Vec`](std::Vec)
+    /// Returns a distinct collection of all [`DieSymbols`](crate::dice::DieSymbol) represented on all [`DieSides`](crate::dice::DieSide) of the [`Die`](crate::dice::Die) as a `Vec`
     /// 
     /// # Example
     /// ```rust
