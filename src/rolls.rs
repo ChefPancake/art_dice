@@ -143,6 +143,7 @@ impl RollProbabilities {
                 .cloned().collect())
             .collect();
         filtered_sides.sort_by(|x,y| x.len().cmp(&y.len()));
+        filtered_sides.reverse();
         let sides_len = filtered_sides.len();
         match policy.coll_type {
             RollCollectionTypes::CollectAll => 
@@ -163,43 +164,6 @@ impl RollProbabilities {
         }
     }
 
-    // fn collect_symbols(roll: &[&DieSide], policy: &RollCollectionPolicy) -> Vec<DieSymbol> {
-    //     let mut counted_sides: Vec<(usize, Vec<DieSymbol>)> =
-    //         roll.iter()
-    //         .map(|x| 
-    //             (x.symbols().iter()
-    //                 .filter(|y| policy.symbols.contains(y))
-    //                 .collect::<Vec<&DieSymbol>>().len(),
-    //             roll.iter()
-    //                 .map(|x| x.symbols().iter().cloned())
-    //                 .flatten()
-    //                 .collect()))
-    //         .collect();
-    //     counted_sides.sort_by(|x,y| x.0.cmp(&y.0));
-    //     let ordered_sides: Vec<Vec<DieSymbol>> =
-    //         counted_sides.iter()
-    //         .map(|x| x.1.clone())
-    //         .collect();
-    //     let sides_len = ordered_sides.len();
-    //     match policy.coll_type {
-    //         RollCollectionTypes::CollectAll => 
-    //             ordered_sides.iter()
-    //             .flatten().cloned().collect(),
-    //         RollCollectionTypes::TakeHighestN(n) => 
-    //             ordered_sides.iter().take(n)
-    //             .flatten().cloned().collect(),
-    //         RollCollectionTypes::TakeLowestN(n) => 
-    //             ordered_sides.iter().skip(sides_len - n)
-    //             .flatten().cloned().collect(),
-    //         RollCollectionTypes::RemoveHighestN(n) =>
-    //             ordered_sides.iter().skip(n)
-    //             .flatten().cloned().collect(),
-    //         RollCollectionTypes::RemoveLowestN(n) =>
-    //             ordered_sides.iter().take(sides_len - n)
-    //             .flatten().cloned().collect()
-    //     }
-    // }
-
     /// Creates a new instance of [`RollProbabilities`](crate::rolls::RollProbabilities) based on the provided collection of [`Dice`](crate::dice::Die). 
     /// Die sides are collected based on the provided ['RollCollectionPolicy'](crate::rolls:RollCollectionPolicy). Returns `Err` if provided slice contains no elements, else returns `Ok`.
     /// 
@@ -208,11 +172,13 @@ impl RollProbabilities {
     /// # use std::error::Error;
     /// # use art_dice::dice::{DieSymbol, DieSide, Die};
     /// # use art_dice::dice::standard;
-    /// # use art_dice::rolls::{RollTarget, RollProbabilities};
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
     /// # fn main() -> Result<(), String> {
+    /// let symbols = vec![ standard::pip() ] ;
+    /// let policy = RollCollectionPolicy::collect_all(&symbols);
     /// let dice = vec![standard::d4(), standard::d4()];
     /// 
-    /// let two_d4s = RollProbabilities::new(&dice)?;
+    /// let two_d4s = RollProbabilities::new(&dice, policy)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -371,5 +337,71 @@ mod roll_tests {
         let results = RollProbabilities::new(&vec![ d4(), d6(), d8(), d10() ], policy).unwrap();
     
         assert_eq!(results.total, 4*6*8*10);
+    }
+
+    #[test]
+    // anydice.com
+    // output [highest 2 of 3d4]
+    fn three_d4s_highest_two() {
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::take_highest_n_of(2, &symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ], policy).unwrap();
+
+        assert_eq!(results.total, 4*4*4);
+        test_results_exactly(&results, &symbols, 2, 0.015625);
+        test_results_exactly(&results, &symbols, 3, 0.046875);
+        test_results_exactly(&results, &symbols, 4, 0.109375);
+        test_results_exactly(&results, &symbols, 5, 0.1875);
+        test_results_exactly(&results, &symbols, 6, 0.25);
+        test_results_exactly(&results, &symbols, 7, 0.234375);
+        test_results_exactly(&results, &symbols, 8, 0.15625);
+    }
+
+    #[test]
+    // anydice.com
+    // output [lowest 2 of 3d4]
+    fn three_d4s_lowest_two() {
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::take_lowest_n_of(2, &symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ], policy).unwrap();
+
+        assert_eq!(results.total, 4*4*4);
+        test_results_exactly(&results, &symbols, 2, 0.15625);
+        test_results_exactly(&results, &symbols, 3, 0.234375);
+        test_results_exactly(&results, &symbols, 4, 0.25);
+        test_results_exactly(&results, &symbols, 5, 0.1875);
+        test_results_exactly(&results, &symbols, 6, 0.109375);
+        test_results_exactly(&results, &symbols, 7, 0.046875);
+        test_results_exactly(&results, &symbols, 8, 0.015625);
+    }
+
+    #[test]
+    // anydice.com
+    // output [lowest 1 of 3d4]
+    fn three_d4s_remove_highest_two() {
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::remove_highest_n_of(2, &symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ], policy).unwrap();
+
+        assert_eq!(results.total, 4*4*4);
+        test_results_exactly(&results, &symbols, 1, 0.578125);
+        test_results_exactly(&results, &symbols, 2, 0.296875);
+        test_results_exactly(&results, &symbols, 3, 0.109375);
+        test_results_exactly(&results, &symbols, 4, 0.015625);
+    }
+
+    #[test]
+    // anydice.com
+    // output [highest 1 of 3d4]
+    fn three_d4s_remove_lowest_two() {
+        let symbols = d4().unique_symbols();
+        let policy = RollCollectionPolicy::remove_lowest_n_of(2, &symbols);
+        let results = RollProbabilities::new(&vec![ d4(), d4(), d4() ], policy).unwrap();
+
+        assert_eq!(results.total, 4*4*4);
+        test_results_exactly(&results, &symbols, 1, 0.015625);
+        test_results_exactly(&results, &symbols, 2, 0.109375);
+        test_results_exactly(&results, &symbols, 3, 0.296875);
+        test_results_exactly(&results, &symbols, 4, 0.578125);
     }
 }
