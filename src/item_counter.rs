@@ -43,4 +43,8 @@ impl<T: Hash + PartialEq + Eq + PartialOrd + Ord + Clone> ItemCounter<T> {
             None => 0
         }
     }
+
+    pub fn total_count(&self) -> usize {
+        self.items.values().sum()
+    }
 }
