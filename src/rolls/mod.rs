@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use itertools::Product;
 use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
@@ -24,6 +25,10 @@ impl RollResultPossibility {
             symbol_count.add(symbol);
         }
         RollResultPossibility { symbols: symbol_count }
+    }
+
+    pub fn total_count(&self) -> usize {
+        self.symbols.total_count()
     }
 }
 
@@ -184,7 +189,7 @@ impl RollProbabilities {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(dice: &[Die], policy: RollCollectionPolicy) -> Result<RollProbabilities, String> {
+    pub fn new(dice: &[Die], policy: &RollCollectionPolicy) -> Result<RollProbabilities, String> {
         if dice.len() == 0 {
             return Err("must include at least one die".to_string());
         }
@@ -192,7 +197,7 @@ impl RollProbabilities {
         for roll in dice.into_iter()
                 .map(|x| x.sides())
                 .multi_cartesian_product() {
-            let collected = Self::collect_symbols(&roll, &policy);
+            let collected = Self::collect_symbols(&roll, policy);
             let new_poss = 
                 RollResultPossibility::new()
                 .add_symbols(&collected);
@@ -256,5 +261,63 @@ impl RollProbabilities {
             }
         }
         return (total_occurrences as f64) / (self.total as f64);
+    }
+
+    pub fn roll_against(&self, other: &Self) -> RollCompare {
+        let (mut wins, mut ties, mut losses) = (0,0,0);
+
+        for (this_poss, other_poss) in self.occurrences.iter().cartesian_product(other.occurrences.iter()) {
+            let this_val = this_poss.0.total_count();
+            let other_val = other_poss.0.total_count();
+            let occurrences = this_poss.1 * other_poss.1;
+
+            match (this_val > other_val, this_val == other_val) {
+                (_, true) => ties += occurrences,
+                (true, false) => wins += occurrences,
+                (false, false) => losses += occurrences
+            }
+        }
+        
+        return RollCompare::new(wins, ties, losses);
+    }
+}
+
+pub struct RollCompare {
+    wins: usize,
+    ties: usize,
+    losses: usize,
+    total: usize
+}
+
+impl RollCompare {
+    pub fn new(wins: usize, ties: usize, losses: usize) -> RollCompare {
+        let total = wins + ties + losses;
+        RollCompare {
+            wins,
+            ties,
+            losses,
+            total
+        }
+    }
+
+    pub fn win_odds(&self) -> f64 {
+        if self.total == 0 {
+            return 0.0
+        }
+        (self.wins as f64) / (self.total as f64)
+    }
+
+    pub fn tie_odds(&self) -> f64 {
+        if self.total == 0 {
+            return 0.0
+        }
+        (self.ties as f64) / (self.total as f64)
+    }
+
+    pub fn loss_odds(&self) -> f64 {
+        if self.total == 0 {
+            return 0.0
+        }
+        (self.losses as f64) / (self.total as f64)
     }
 }
