@@ -146,6 +146,20 @@ fn three_d4s_remove_lowest_two() {
 
 
 #[test]
+fn one_d4_compare_two_d4() {
+    let symbols = d4().unique_symbols();
+    let policy = RollCollectionPolicy::collect_all(&symbols);
+    let results1 = RollProbabilities::new(&vec![ d4()], &policy).unwrap();
+    let results2 = RollProbabilities::new(&vec![ d4(), d4()], &policy).unwrap();
+
+    let compare = results1.roll_against(&results2);
+
+    assert_eq!(compare.win_odds(), 4.0/64.0);
+    assert_eq!(compare.tie_odds(), 6.0/64.0);
+    assert_eq!(compare.loss_odds(), 54.0/64.0);
+}
+
+#[test]
 fn two_d4_compare_two_d4() {
     let symbols = d4().unique_symbols();
     let policy = RollCollectionPolicy::collect_all(&symbols);
@@ -157,4 +171,18 @@ fn two_d4_compare_two_d4() {
     assert_eq!(compare.win_odds(), 106.0/256.0);
     assert_eq!(compare.tie_odds(), 44.0/256.0);
     assert_eq!(compare.loss_odds(), 106.0/256.0);
+}
+
+#[test]
+fn one_d8_compare_two_d4() {
+    let symbols = d4().unique_symbols();
+    let policy = RollCollectionPolicy::collect_all(&symbols);
+    let results1 = RollProbabilities::new(&vec![ d8()], &policy).unwrap();
+    let results2 = RollProbabilities::new(&vec![ d4(), d4()], &policy).unwrap();
+
+    let compare = results1.roll_against(&results2);
+
+    assert_eq!(compare.win_odds(), 48.0/128.0);
+    assert_eq!(compare.tie_odds(), 16.0/128.0);
+    assert_eq!(compare.loss_odds(), 64.0/128.0);
 }

@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use std::collections::HashMap;
+use std::cmp::Ordering;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
 
@@ -184,7 +185,7 @@ impl RollProbabilities {
     /// let policy = RollCollectionPolicy::collect_all(&symbols);
     /// let dice = vec![standard::d4(), standard::d4()];
     /// 
-    /// let two_d4s = RollProbabilities::new(&dice, policy)?;
+    /// let two_d4s = RollProbabilities::new(&dice, &policy)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -227,7 +228,7 @@ impl RollProbabilities {
     /// let dice = vec![standard::d4(), standard::d4()];
     /// let symbols = vec![ standard::pip() ];
     /// let policy = RollCollectionPolicy::collect_all(&symbols);
-    /// let two_d4s = RollProbabilities::new(&dice, policy)?;
+    /// let two_d4s = RollProbabilities::new(&dice, &policy)?;
     /// 
     /// let exactly_3 = two_d4s.get_odds(RollTarget::exactly_n_of(3, &symbols));
     /// let at_least_6 = two_d4s.get_odds(RollTarget::at_least_n_of(6, &symbols));
@@ -262,36 +263,71 @@ impl RollProbabilities {
         return (total_occurrences as f64) / (self.total as f64);
     }
 
-    pub fn roll_against(&self, other: &Self) -> RollCompare {
-        let (mut wins, mut ties, mut losses) = (0,0,0);
-
-        for (this_poss, other_poss) in self.occurrences.iter().cartesian_product(other.occurrences.iter()) {
-            let this_val = this_poss.0.total_count();
-            let other_val = other_poss.0.total_count();
-            let occurrences = this_poss.1 * other_poss.1;
-
-            match (this_val > other_val, this_val == other_val) {
-                (_, true) => ties += occurrences,
-                (true, false) => wins += occurrences,
-                (false, false) => losses += occurrences
-            }
-        }
-        
-        return RollCompare::new(wins, ties, losses);
+    /// Compares the results of one roll against another, returning a new [`RollCompareResult`](crate::rolls::RollCompareResult)
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::rolls::RollCompareResult;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
+    /// # fn main() -> Result<(), String> {
+    /// let symbols = vec![standard::pip()];
+    /// let d8_pool = vec![standard::d8()];
+    /// let d4_pool = vec![standard::d4()];
+    /// let policy = RollCollectionPolicy::collect_all(&symbols);
+    /// let d8_result = RollProbabilities::new(&d8_pool, &policy)?;
+    /// let d4_result = RollProbabilities::new(&d4_pool, &policy)?;
+    /// 
+    /// let compare = d8_result.roll_against(&d4_result);
+    /// 
+    /// assert_eq!(compare.win_odds(), 0.6875);
+    /// assert_eq!(compare.tie_odds(), 0.125);
+    /// assert_eq!(compare.loss_odds(), 0.1875);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn roll_against(&self, other: &Self) -> RollCompareResult {
+        let (wins,ties,losses) = 
+            self.occurrences.iter()
+            .cartesian_product(other.occurrences.iter())
+            .map(|(this_poss, other_poss)| {
+                let this_val = this_poss.0.total_count();
+                let other_val = other_poss.0.total_count();
+                let occurrences = this_poss.1 * other_poss.1;
+                match this_val.cmp(&other_val) {
+                    Ordering::Greater => (occurrences, 0, 0),
+                    Ordering::Equal => (0, occurrences, 0),
+                    Ordering::Less => (0, 0, occurrences)
+                }})
+            .fold((0, 0, 0), |(x, y, z), (i, j ,k)| (x+i, y+j, z+k));
+        return RollCompareResult::new(wins, ties, losses);
     }
 }
-
-pub struct RollCompare {
+/// Represents the probabilities of a roll against another pool of dice
+pub struct RollCompareResult {
     wins: usize,
     ties: usize,
     losses: usize,
     total: usize
 }
 
-impl RollCompare {
-    pub fn new(wins: usize, ties: usize, losses: usize) -> RollCompare {
+impl RollCompareResult {
+    /// Creates a new instance of [`RollCompareResult`](crate::rolls::RollCompareResult)
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::rolls::RollCompareResult;
+    /// # fn main() -> Result<(), String> {
+    /// let compare = RollCompareResult::new(3, 1, 4);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(wins: usize, ties: usize, losses: usize) -> RollCompareResult {
         let total = wins + ties + losses;
-        RollCompare {
+        RollCompareResult {
             wins,
             ties,
             losses,
@@ -299,6 +335,29 @@ impl RollCompare {
         }
     }
 
+    /// In a roll of [`a.roll_against(&b)`](crate::rolls::RollProbabilities::roll_against), returns the probability, as a decimal, of dice roll `a`'s value exceeding dice roll `b`'s value. 
+    /// Returns `0.0` if the struct is empty.
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::rolls::RollCompareResult;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
+    /// # fn main() -> Result<(), String> {
+    /// # let symbols = vec![standard::pip()];
+    /// # let d8_pool = vec![standard::d8()];
+    /// # let d4_pool = vec![standard::d4()];
+    /// # let policy = RollCollectionPolicy::collect_all(&symbols);
+    /// # let d8_result = RollProbabilities::new(&d8_pool, &policy)?;
+    /// # let d4_result = RollProbabilities::new(&d4_pool, &policy)?;    
+    /// let compare = d8_result.roll_against(&d4_result);
+    /// 
+    /// assert_eq!(compare.win_odds(), 0.6875);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn win_odds(&self) -> f64 {
         if self.total == 0 {
             return 0.0
@@ -306,6 +365,29 @@ impl RollCompare {
         (self.wins as f64) / (self.total as f64)
     }
 
+    /// In a roll of [`a.roll_against(&b)`](crate::rolls::RollProbabilities::roll_against), returns the probability, as a decimal, of dice roll `a`'s value matching dice roll `b`'s value. 
+    /// Returns `0.0` if the struct is empty.
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::rolls::RollCompareResult;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
+    /// # fn main() -> Result<(), String> {
+    /// # let symbols = vec![standard::pip()];
+    /// # let d8_pool = vec![standard::d8()];
+    /// # let d4_pool = vec![standard::d4()];
+    /// # let policy = RollCollectionPolicy::collect_all(&symbols);
+    /// # let d8_result = RollProbabilities::new(&d8_pool, &policy)?;
+    /// # let d4_result = RollProbabilities::new(&d4_pool, &policy)?;
+    /// let compare = d8_result.roll_against(&d4_result);
+    /// 
+    /// assert_eq!(compare.tie_odds(), 0.125);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn tie_odds(&self) -> f64 {
         if self.total == 0 {
             return 0.0
@@ -313,6 +395,29 @@ impl RollCompare {
         (self.ties as f64) / (self.total as f64)
     }
 
+    /// In a roll of [`a.roll_against(&b)`](crate::rolls::RollProbabilities::roll_against), returns the probability, as a decimal, of dice roll `b`'s value exceeding dice roll `a`'s value. 
+    /// Returns `0.0` if the struct is empty.
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::rolls::RollCompareResult;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die};
+    /// # use art_dice::dice::standard;
+    /// # use art_dice::rolls::{RollTarget, RollProbabilities, RollCollectionPolicy};
+    /// # fn main() -> Result<(), String> {
+    /// # let symbols = vec![standard::pip()];
+    /// # let d8_pool = vec![standard::d8()];
+    /// # let d4_pool = vec![standard::d4()];
+    /// # let policy = RollCollectionPolicy::collect_all(&symbols);
+    /// # let d8_result = RollProbabilities::new(&d8_pool, &policy)?;
+    /// # let d4_result = RollProbabilities::new(&d4_pool, &policy)?;
+    /// let compare = d8_result.roll_against(&d4_result);
+    /// 
+    /// assert_eq!(compare.loss_odds(), 0.1875);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn loss_odds(&self) -> f64 {
         if self.total == 0 {
             return 0.0
