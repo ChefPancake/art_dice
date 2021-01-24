@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use itertools::Product;
 use std::collections::HashMap;
 use crate::dice::*;
 use crate::item_counter::ItemCounter;
