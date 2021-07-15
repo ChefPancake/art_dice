@@ -3,7 +3,7 @@ use crate::rolls::*;
 
 fn test_results_exactly(results: &RollProbabilities, symbols: &[DieSymbol], count: usize, expected: f64) {
     let target = RollTarget::exactly_n_of(count, symbols);
-    let odds = results.get_odds(target);
+    let odds = results.get_odds(&vec![ target ]);
     assert_eq!(odds, expected);
 }
 
@@ -185,4 +185,34 @@ fn one_d8_compare_two_d4() {
     assert_eq!(compare.win_odds(), 48.0/128.0);
     assert_eq!(compare.tie_odds(), 16.0/128.0);
     assert_eq!(compare.loss_odds(), 64.0/128.0);
+}
+
+#[test]
+fn two_custom_d4_multiple_targets() {
+    let a_symbol = DieSymbol::new("A").unwrap();
+    let b_symbol = DieSymbol::new("B").unwrap();
+    let both_symbols = vec![ a_symbol.clone(), b_symbol.clone() ];
+    let sides = vec![
+        DieSide::new(vec![ a_symbol.clone() ] ),
+        DieSide::new(vec![ b_symbol.clone() ] ),
+        DieSide::new(vec![ a_symbol.clone(), b_symbol.clone() ] ),
+        DieSide::new(vec![ ] )
+    ];
+    let custom_d4 = Die::new(sides).unwrap();
+    let policy = RollCollectionPolicy::collect_all(&both_symbols);
+    let results = RollProbabilities::new(&vec![ custom_d4.clone(), custom_d4.clone() ], &policy).unwrap();
+
+    let a_symbol_vec = vec![ a_symbol.clone() ];
+    let b_symbol_vec = vec![ b_symbol.clone() ];
+
+    let target_exactly_one_a = RollTarget::exactly_n_of(1, &a_symbol_vec);
+    let target_at_least_one_b = RollTarget::at_least_n_of(1, &b_symbol_vec);
+
+    assert_eq!(results.total, 4*4);
+    let results_exactly_one_a = results.get_odds(&vec![target_exactly_one_a.clone()]);
+    assert_eq!(results_exactly_one_a, 8.0/16.0);
+    let results_at_least_one_b = results.get_odds(&vec![target_at_least_one_b.clone()]);
+    assert_eq!(results_at_least_one_b, 12.0/16.0);
+    let results_exactly_one_a_and_at_least_one_b = results.get_odds(&vec![target_exactly_one_a, target_at_least_one_b]);
+    assert_eq!(results_exactly_one_a_and_at_least_one_b, 6.0/16.0);
 }
