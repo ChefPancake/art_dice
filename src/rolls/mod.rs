@@ -33,14 +33,14 @@ impl RollResultPossibility {
 }
 
 /// Represents the type of targets for a given roll
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 enum RollTargetTypes {
     Exactly,
     AtLeast,
     AtMost
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 /// Represents the target for a given roll
 pub struct RollTarget<'a> {
     target_type: RollTargetTypes,
@@ -214,7 +214,7 @@ impl RollProbabilities {
         })
     }
 
-    /// Retrieves the probability of the roll achieving the [`RollTarget`](crate::rolls::RollTarget). 
+    /// Retrieves the probability of the roll achieving all of the [`RollTargets`](crate::rolls::RollTarget). 
     /// Note that the roll's [`DieSymbols`](crate::dice::DieSymbol) will have been filtered down based
     /// on the [`RollCollectionPolicy`](crate::rolls::RollCollectionPolicy) used to generate the probability
     /// 
@@ -230,9 +230,9 @@ impl RollProbabilities {
     /// let policy = RollCollectionPolicy::collect_all(&symbols);
     /// let two_d4s = RollProbabilities::new(&dice, &policy)?;
     /// 
-    /// let exactly_3 = two_d4s.get_odds(RollTarget::exactly_n_of(3, &symbols));
-    /// let at_least_6 = two_d4s.get_odds(RollTarget::at_least_n_of(6, &symbols));
-    /// let at_most_5 = two_d4s.get_odds(RollTarget::at_most_n_of(5, &symbols));
+    /// let exactly_3 = two_d4s.get_odds(&vec![ RollTarget::exactly_n_of(3, &symbols)]);
+    /// let at_least_6 = two_d4s.get_odds(&vec![ RollTarget::at_least_n_of(6, &symbols)]);
+    /// let at_most_5 = two_d4s.get_odds(&vec![ RollTarget::at_most_n_of(5, &symbols)]);
     /// 
     /// assert_eq!(exactly_3, 0.125);
     /// assert_eq!(at_least_6, 0.375);
@@ -240,22 +240,25 @@ impl RollProbabilities {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_odds(&self, target: RollTarget) -> f64 {
+    pub fn get_odds(&self, targets: &[RollTarget]) -> f64 {
         if self.total == 0 {
             return 0.0;
         }
 
         let mut total_occurrences = 0;
         for poss in self.occurrences.keys() {
-            let mut count: usize = 0;
-            for symbol in target.symbols {
-                count += poss.symbols.get_count(&symbol);
+            let mut cond = true;
+            for target in targets {
+                let mut count: usize = 0;
+                for symbol in target.symbols {
+                    count += poss.symbols.get_count(&symbol);
+                }
+                cond = cond & match target.target_type {
+                    RollTargetTypes::Exactly => count == target.amount,
+                    RollTargetTypes::AtLeast => count >= target.amount,
+                    RollTargetTypes::AtMost => count <= target.amount
+                };
             }
-            let cond = match target.target_type {
-                RollTargetTypes::Exactly => count == target.amount,
-                RollTargetTypes::AtLeast => count >= target.amount,
-                RollTargetTypes::AtMost => count <= target.amount
-            };
             if cond {
                 total_occurrences += self.occurrences[poss];
             }
