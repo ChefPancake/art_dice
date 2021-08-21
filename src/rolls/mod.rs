@@ -39,7 +39,7 @@ enum RollTargetTypes {
     AtLeast,
     AtMost
 }
-
+ 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 /// Represents the target for a given roll
 pub struct RollTarget<'a> {
