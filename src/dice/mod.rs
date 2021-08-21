@@ -179,4 +179,30 @@ impl Die {
         }
         unique
     }
+
+    /// Returns the average amount of times a [`DieSymbol`] will appear on a [`Die`] when rolled as an `f64`.
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use std::error::Error;
+    /// # use art_dice::dice::{DieSymbol, DieSide, Die };
+    /// # use art_dice::dice::standard::{ d6 };
+    /// # fn main() -> Result<(), String> {
+    /// # let d6 = d6();
+    /// # let pip = d6.unique_symbols().first().unwrap().clone();
+    /// let average = d6.average_of(&pip);
+    /// 
+    /// assert_eq!(average, 3.5);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn average_of(&self, symbol: &DieSymbol) -> f64 {
+        let sides = self.sides.len() as f64;
+        let symbol_count = self.sides.iter()
+            .map(|s| s.symbols())
+            .flatten()
+            .filter(|&s| *s == *symbol)
+            .count() as f64;
+        symbol_count / sides
+    }
 }

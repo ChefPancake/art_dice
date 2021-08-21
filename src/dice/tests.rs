@@ -26,3 +26,19 @@ fn twelve_sided_die() {
     assert_eq!(sides.len(), 12);
     assert_dice_sides(sides);
 }
+
+#[test]
+fn six_sided_die_average() {
+    let die = d6();
+    let symbol = die.unique_symbols().first().unwrap().clone();
+    let average = die.average_of(&symbol);
+    assert_eq!(average, 3.5);
+}
+
+#[test]
+fn ten_sided_die_average() {
+    let die = d10();
+    let symbol = die.unique_symbols().first().unwrap().clone();
+    let average = die.average_of(&symbol);
+    assert_eq!(average, 5.5);
+}
