@@ -2,7 +2,7 @@ pub mod standard;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Debug)]
 /// Represents an instance of a symbol found on a die
 pub struct DieSymbol {
     name: String
@@ -19,8 +19,8 @@ impl DieSymbol {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(val: &str) -> Result<DieSymbol, String> {
-        let trimmed = val.trim();
+    pub fn new(val: impl AsRef<str>) -> Result<DieSymbol, String> {
+        let trimmed = val.as_ref().trim();
         match trimmed.len() {
             0 => Err("Value cannot be empty".to_string()),
             _ => Ok(DieSymbol { name: trimmed.to_string() })
@@ -45,7 +45,7 @@ impl DieSymbol {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// Represents a side of a die and contains a collection of [`DieSymbols`](crate::dice::DieSymbol)
 pub struct DieSide {
     symbols: Vec<DieSymbol>
@@ -90,7 +90,7 @@ impl DieSide {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// Represents a die containing a collection of all its [`DieSides`](crate::dice::DieSide)
 pub struct Die {
     sides: Vec<DieSide>

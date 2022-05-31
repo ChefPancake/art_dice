@@ -9,7 +9,7 @@ fn side_of_n_symbols(n: usize, symbol: &DieSymbol) -> DieSide {
 }
 
 fn n_sided_die(n: usize) -> Die {
-    let pip = DieSymbol::new("Pip").unwrap();
+    let pip = pip();
     let sides = 
         (1..(n+1))
         .map(|i| side_of_n_symbols(i, &pip))

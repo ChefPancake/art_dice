@@ -38,10 +38,7 @@ impl<T: Hash + PartialEq + Eq + PartialOrd + Ord + Clone> ItemCounter<T> {
     }
 
     pub fn get_count(&self, item: &T) -> usize {
-        match self.items.get(item) {
-            Some(x) => *x,
-            None => 0
-        }
+        *self.items.get(item).unwrap_or(&0)
     }
 
     pub fn total_count(&self) -> usize {
